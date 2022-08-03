@@ -13,12 +13,14 @@ import (
 	. "github.com/onsi/gomega"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -559,6 +561,35 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 			// revert node label to have the expected value
 			nodeLabel = testutils.NodeSelectorLabels
+		})
+	})
+
+	Context("Verify required PerformanceProfile parameters", func() {
+		It("Verify spec.cpu.reserved is required in PerformanceProfile [negative]", func() {
+
+			isolated := performancev2.CPUSet("1-3")
+
+			By("Define PerformanceProfile")
+			profile := &performancev2.PerformanceProfile{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "PerformanceProfile",
+					APIVersion: performancev2.GroupVersion.String(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: utils.PerformanceProfileName,
+				},
+				Spec: performancev2.PerformanceProfileSpec{
+					CPU: &performancev2.CPU{
+						Isolated: &isolated,
+					},
+					NodeSelector: testutils.NodeSelectorLabels,
+				},
+			}
+
+			By("Creating the PerformanceProfile")
+			err := testclient.Client.Create(context.TODO(), profile)
+			Expect(err).To(HaveOccurred())
+
 		})
 	})
 })
